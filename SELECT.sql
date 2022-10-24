@@ -2,7 +2,7 @@ SELECT genre gn, COUNT(artist_id) FROM artist_genre art_gn
 GROUP BY gn;
 
 SELECT album_name, COUNT(track_id) FROM album a
-FULL JOIN track t ON a.album_id = t.album_id
+JOIN track t ON a.album_id = t.album_id
 WHERE year_of_issue >=2019 AND year_of_issue <= 2020
 GROUP BY album_name;
 
@@ -11,9 +11,7 @@ JOIN track t ON a.album_id = t.album_id
 GROUP BY album_name;
 
 SELECT artist_name FROM artist a
-JOIN artist_album aa ON a.artist_id = aa.artist 
-JOIN album alb ON aa.album = alb.album_id  
-WHERE year_of_issue != 2020
+WHERE artist_id != (SELECT DISTINCT (artist_id) FROM artist a JOIN artist_album aa ON a.artist_id = aa.artist JOIN album alb ON aa.album = alb.album_id WHERE year_of_issue = 2020)
 GROUP BY artist_name;
 
 SELECT collection_name FROM collection_track_list ctl 
@@ -30,23 +28,28 @@ SELECT album_name FROM album alb
 FULL JOIN artist_album aa ON alb.album_id = aa.album
 FULL JOIN artist a ON a.artist_id = aa.artist 
 FULL JOIN artist_genre ag ON a.artist_id = ag.artist_id
-WHERE ag.artist_id = (SELECT artist_id FROM artist_genre agn GROUP BY artist_id ORDER BY COUNT(genre) DESC LIMIT 1)
-GROUP BY album_name;
+GROUP BY album_name
+HAVING COUNT(DISTINCT ag.genre) > 1;
 
-SELECT track_name FROM track t 
+SELECT track_name, tl.track FROM track t 
 FULL JOIN track_list tl ON tl.track = t.track_id 
-WHERE t.track_id = (SELECT track_id FROM track t FULL JOIN track_list tl ON tl.track = t.track_id GROUP BY track_id ORDER BY COUNT(collection) ASC LIMIT 1)
-GROUP BY track_name;
+GROUP BY track_name, tl.track
+HAVING tl.track IS NULL;
 
 SELECT artist_name FROM artist a
 JOIN artist_album aa ON a.artist_id = aa.artist 
 JOIN album alb ON aa.album = alb.album_id  
 JOIN track t ON alb.album_id = t.album_id
-WHERE duration = (SELECT duration FROM track t GROUP BY duration ORDER BY duration ASC LIMIT 1)
+WHERE t.track_id = (SELECT track_id FROM track t GROUP BY track_id ORDER BY duration ASC LIMIT 1)
 GROUP BY artist_name;
 
-SELECT album_name FROM album a
+SELECT album_name, COUNT(track_id) FROM album a
 FULL JOIN track t ON a.album_id = t.album_id
 GROUP BY album_name 
 ORDER BY COUNT(track_id) 
-ASC LIMIT 1;
+ASC LIMIT 2;
+
+SELECT album_name, count_track FROM (SELECT album_id, COUNT(album_id) count_track FROM track GROUP BY album_id) track 
+JOIN album a ON a.album_id = track.album_id 
+GROUP BY a.album_name, track.count_track
+HAVING count_track = (SELECT MIN(mycount) FROM (SELECT album_id, COUNT(album_id) mycount FROM track GROUP BY album_id) AS min_count);
